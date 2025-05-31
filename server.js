@@ -1,31 +1,47 @@
-// server.js
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
-const DATA_FILE = path.join(__dirname, 'ips.json');
-
 app.use(express.json());
 app.use(express.static('public'));
 
-// Initialize ips.json if missing
-if (!fs.existsSync(DATA_FILE)) {
-  fs.writeFileSync(DATA_FILE, '[]');
+const DATA_FILE = path.join(__dirname, 'ips.json');
+
+// Helper to read stored entries
+function readEntries() {
+  try {
+    const data = fs.readFileSync(DATA_FILE, 'utf8');
+    return JSON.parse(data);
+  } catch (err) {
+    return [];
+  }
 }
 
-// POST IP endpoint
+// Helper to save entries
+function saveEntries(entries) {
+  fs.writeFileSync(DATA_FILE, JSON.stringify(entries, null, 2));
+}
+
+// POST /ip - add new IP + deviceType
 app.post('/ip', (req, res) => {
-  const ip = req.body.ip;
-  if (!ip) return res.status(400).send('IP required');
+  const { ip, deviceType } = req.body;
+  if (!ip) {
+    return res.status(400).json({ error: 'IP is required' });
+  }
 
-  const ips = JSON.parse(fs.readFileSync(DATA_FILE));
+  const entries = readEntries();
 
-  if (!ips.includes(ip)) {
-    ips.push(ip);
-    fs.writeFileSync(DATA_FILE, JSON.stringify(ips, null, 2));
-    console.log(`Added new IP: ${ip}`);
+  // Check if IP already exists
+  const exists = entries.some(e => e.ip === ip);
+
+  if (!exists) {
+    entries.push({
+      ip,
+      deviceType: deviceType || 'Unknown',
+    });
+    saveEntries(entries);
+    console.log(`Added new entry: ${ip} - ${deviceType || 'Unknown'}`);
   } else {
     console.log(`Duplicate IP ignored: ${ip}`);
   }
@@ -33,12 +49,13 @@ app.post('/ip', (req, res) => {
   res.sendStatus(200);
 });
 
-// GET all stored IPs
+// GET /ips - return all stored entries
 app.get('/ips', (req, res) => {
-  const ips = JSON.parse(fs.readFileSync(DATA_FILE));
-  res.json(ips);
+  const entries = readEntries();
+  res.json(entries);
 });
 
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`Server listening on port ${PORT}`);
 });

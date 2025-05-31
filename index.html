@@ -1,0 +1,54 @@
+<!-- public/index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>IP Fetcher</title>
+</head>
+<body>
+  <h1>IP Fetcher</h1>
+
+  <button id="fetchIp">Fetch & Store My IP</button>
+
+  <h2>Stored IPs</h2>
+  <ul id="ipList"></ul>
+
+  <script>
+    async function fetchMyIP() {
+      const res = await fetch('https://api.ipify.org?format=json');
+      const data = await res.json();
+      return data.ip;
+    }
+
+    async function addIP(ip) {
+      await fetch('/ip', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ip }),
+      });
+    }
+
+    async function refreshIPs() {
+      const res = await fetch('/ips');
+      const ips = await res.json();
+
+      const list = document.getElementById('ipList');
+      list.innerHTML = '';
+      ips.forEach(ip => {
+        const li = document.createElement('li');
+        li.textContent = ip;
+        list.appendChild(li);
+      });
+    }
+
+    document.getElementById('fetchIp').addEventListener('click', async () => {
+      const ip = await fetchMyIP();
+      await addIP(ip);
+      await refreshIPs();
+    });
+
+    // Initial load of stored IPs
+    refreshIPs();
+  </script>
+</body>
+</html>
